@@ -29,7 +29,20 @@ type AppSwitcherItem = {
   group: "Workspace" | "Operacion" | "Proximamente";
 };
 
-type IconName = "dashboard" | "package" | "users";
+type IconName =
+  | "dashboard"
+  | "accounting"
+  | "users"
+  | "calendar"
+  | "store"
+  | "sparkles"
+  | "package"
+  | "menu"
+  | "fileText"
+  | "briefcase"
+  | "phone"
+  | "book"
+  | "flask";
 
 type NavItem = {
   href: string;
@@ -67,7 +80,7 @@ const APP_ENTITY =
     | "anima"
     | "aura") ?? "numera";
 
-const APP_NAME = process.env.NEXT_PUBLIC_VENTO_APP_NAME ?? "numera";
+const APP_NAME = process.env.NEXT_PUBLIC_VENTO_APP_NAME ?? "NUMERA";
 
 const APP_TAGLINE =
   process.env.NEXT_PUBLIC_VENTO_APP_TAGLINE ?? "Economia y rentabilidad";
@@ -86,12 +99,18 @@ function Icon({ name }: { name?: IconName }) {
         </svg>
       );
 
-    case "package":
+    case "accounting":
       return (
         <svg viewBox="0 0 24 24" fill={common} stroke="currentColor" strokeWidth="1.6">
-          <path d="M21 8.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8.5" />
-          <path d="M12 3 2 8l10 5 10-5-10-5z" />
-          <path d="M12 13v8" />
+          <path d="M4 7h16" />
+          <path d="M6 7v13" />
+          <path d="M18 7v13" />
+          <path d="M4 20h16" />
+          <path d="M8 11h2" />
+          <path d="M8 15h2" />
+          <path d="M14 11h2" />
+          <path d="M14 15h2" />
+          <path d="M8 4h8" />
         </svg>
       );
 
@@ -102,6 +121,107 @@ function Icon({ name }: { name?: IconName }) {
           <path d="M4 18c0-3 3-5 6-5" />
           <path d="M20 18c0-3-3-5-6-5" />
           <circle cx="8" cy="9" r="3" />
+        </svg>
+      );
+
+    case "calendar":
+      return (
+        <svg viewBox="0 0 24 24" fill={common} stroke="currentColor" strokeWidth="1.6">
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M16 3v4" />
+          <path d="M8 3v4" />
+          <path d="M3 10h18" />
+          <path d="M8 14h.01" />
+          <path d="M12 14h.01" />
+          <path d="M16 14h.01" />
+          <path d="M8 18h.01" />
+          <path d="M12 18h.01" />
+        </svg>
+      );
+
+    case "store":
+      return (
+        <svg viewBox="0 0 24 24" fill={common} stroke="currentColor" strokeWidth="1.6">
+          <path d="M3 9h18l-2-5H5z" />
+          <path d="M5 9v10h14V9" />
+          <path d="M9 19v-6h6v6" />
+        </svg>
+      );
+
+    case "sparkles":
+      return (
+        <svg viewBox="0 0 24 24" fill={common} stroke="currentColor" strokeWidth="1.6">
+          <path d="M12 3l1.5 3.5L17 8l-3.5 1.5L12 13l-1.5-3.5L7 8l3.5-1.5L12 3z" />
+          <path d="M5 16l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z" />
+          <path d="M18 14l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z" />
+        </svg>
+      );
+
+    case "package":
+      return (
+        <svg viewBox="0 0 24 24" fill={common} stroke="currentColor" strokeWidth="1.6">
+          <path d="M3 8.5L12 4l9 4.5v7L12 20l-9-4.5z" />
+          <path d="M12 20v-8" />
+          <path d="M3 8.5l9 4.5 9-4.5" />
+        </svg>
+      );
+
+    case "menu":
+      return (
+        <svg viewBox="0 0 24 24" fill={common} stroke="currentColor" strokeWidth="1.6">
+          <path d="M4 7h16" />
+          <path d="M7 12h13" />
+          <path d="M10 17h10" />
+          <path d="M4 17h2" />
+          <path d="M4 12h2" />
+          <path d="M4 7h2" />
+        </svg>
+      );
+
+    case "fileText":
+      return (
+        <svg viewBox="0 0 24 24" fill={common} stroke="currentColor" strokeWidth="1.6">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6" />
+          <path d="M16 13H8" />
+          <path d="M16 17H8" />
+          <path d="M10 9H8" />
+        </svg>
+      );
+
+    case "briefcase":
+      return (
+        <svg viewBox="0 0 24 24" fill={common} stroke="currentColor" strokeWidth="1.6">
+          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+          <rect x="3" y="6" width="18" height="14" rx="2" />
+          <path d="M3 11h18" />
+        </svg>
+      );
+
+    case "phone":
+      return (
+        <svg viewBox="0 0 24 24" fill={common} stroke="currentColor" strokeWidth="1.6">
+          <rect x="7" y="2.5" width="10" height="19" rx="2" />
+          <path d="M11 18.5h2" />
+          <path d="M10 5.5h4" />
+        </svg>
+      );
+
+    case "book":
+      return (
+        <svg viewBox="0 0 24 24" fill={common} stroke="currentColor" strokeWidth="1.6">
+          <path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z" />
+          <path d="M6 3v16" />
+          <path d="M10 7h6" />
+          <path d="M10 11h6" />
+        </svg>
+      );
+
+    case "flask":
+      return (
+        <svg viewBox="0 0 24 24" fill={common} stroke="currentColor" strokeWidth="1.6">
+          <path d="M10 2v5l-5.5 9.5A3 3 0 0 0 7.1 21h9.8a3 3 0 0 0 2.6-4.5L14 7V2" />
+          <path d="M9 11h6" />
         </svg>
       );
 
@@ -353,6 +473,3 @@ export function VentoChrome({
     </div>
   );
 }
-
-
-

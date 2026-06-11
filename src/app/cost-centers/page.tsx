@@ -22,6 +22,12 @@ type SummaryRow = {
   target_gross_margin_pct: number | null;
 };
 
+type CenterGroup = {
+  title: string;
+  subtitle: string;
+  rows: SummaryRow[];
+};
+
 function asText(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -56,6 +62,58 @@ function centerLabel(row: SummaryRow) {
   const name = String(row.cost_center_name ?? "").trim() || "Centro sin nombre";
   const code = String(row.cost_center_code ?? "").trim();
   return code ? `${name} - ${code}` : name;
+}
+
+function centerKindLabel(type: string | null | undefined) {
+  switch (type) {
+    case "production_center":
+      return "Centro productor";
+    case "satellite":
+      return "Satelite";
+    case "admin":
+      return "Administrativo";
+    default:
+      return "Otro";
+  }
+}
+
+function isDemoRow(row: SummaryRow) {
+  const text = `${row.cost_center_name ?? ""} ${row.cost_center_code ?? ""}`.toLowerCase();
+  return text.includes("app review") || text.includes("demo");
+}
+
+function sumRows(rows: SummaryRow[], key: keyof Pick<SummaryRow, "budget_amount" | "expected_revenue" | "actual_expenses" | "budget_variance" | "break_even_revenue">) {
+  return rows.reduce((total, row) => total + Number(row[key] ?? 0), 0);
+}
+
+function groupRows(rows: SummaryRow[]): CenterGroup[] {
+  const production = rows.filter((row) => row.cost_center_type === "production_center");
+  const satellites = rows.filter((row) => row.cost_center_type === "satellite");
+  const admin = rows.filter((row) => row.cost_center_type === "admin");
+  const other = rows.filter((row) => !["production_center", "satellite", "admin"].includes(String(row.cost_center_type ?? "")));
+
+  return [
+    {
+      title: "Centro productor",
+      subtitle: "Aqui se controla lo que se vende internamente a los satelites por remisiones valorizadas.",
+      rows: production,
+    },
+    {
+      title: "Satelites",
+      subtitle: "Aqui se miden gastos propios, compras internas recibidas y punto de equilibrio por sede.",
+      rows: satellites,
+    },
+    {
+      title: "Administrativo",
+      subtitle: "Aqui van gastos de soporte que no pertenecen a una sede operativa concreta.",
+      rows: admin,
+    },
+    {
+      title: "Otros centros",
+      subtitle: "Centros que aun necesitan clasificacion operativa.",
+      rows: other,
+    },
+  ].filter((group) => group.rows.length > 0);
 }
 
 async function upsertBudget(formData: FormData) {
@@ -110,62 +168,180 @@ export default async function Page({ searchParams }: { searchParams?: Promise<{ 
   ]);
 
   const periods = (periodsData ?? []) as PeriodRow[];
-  const rows = (data ?? []) as SummaryRow[];
+  const rows = ((data ?? []) as SummaryRow[]).filter((row) => !isDemoRow(row));
   const currentPeriod = periods[0] ?? null;
+  const groupedRows = groupRows(rows);
+  const totalBudget = sumRows(rows, "budget_amount");
+  const totalExpectedRevenue = sumRows(rows, "expected_revenue");
+  const totalBreakEven = sumRows(rows, "break_even_revenue");
+  const configuredRows = rows.filter((row) => Number(row.budget_amount ?? 0) > 0 || Number(row.expected_revenue ?? 0) > 0 || Number(row.target_gross_margin_pct ?? 0) > 0).length;
 
   return (
     <div className="w-full space-y-6">
-      <section className="ui-panel space-y-3">
-        <div className="ui-chip ui-chip--brand">NUMERA</div>
-        <h1 className="ui-h1">Centros de costo</h1>
-        <p className="ui-body-muted">Mapa economico por sede, area, canal y unidad operativa.</p>
+      <section className="ui-panel ui-panel--halo space-y-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-3xl space-y-3">
+            <div className="ui-chip ui-chip--brand">NUMERA / Modelo economico</div>
+            <h1 className="ui-h1">Centros de costo</h1>
+            <p className="ui-body-muted">
+              Esta pantalla no crea sedes ni productos. Aqui defines las metas economicas por centro: cuanto puede gastar, cuanto debe facturar internamente o vender, y que margen bruto objetivo debe sostener.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-surface-2)] px-4 py-3 text-sm text-[var(--ui-muted)]">
+            Periodo activo<br />
+            <span className="text-base font-semibold text-[var(--ui-text)]">{currentPeriod?.label ?? "Sin periodo"}</span>
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl border border-[var(--ui-border)] bg-white p-4">
+            <div className="ui-caption font-semibold uppercase">Que editas</div>
+            <p className="mt-2 text-sm text-[var(--ui-muted)]">Presupuesto mensual, ingreso esperado y margen bruto objetivo.</p>
+          </div>
+          <div className="rounded-2xl border border-[var(--ui-border)] bg-white p-4">
+            <div className="ui-caption font-semibold uppercase">Que calcula Numera</div>
+            <p className="mt-2 text-sm text-[var(--ui-muted)]">Gasto real, variacion contra presupuesto y punto de equilibrio.</p>
+          </div>
+          <div className="rounded-2xl border border-[var(--ui-border)] bg-white p-4">
+            <div className="ui-caption font-semibold uppercase">De donde vendran ventas internas</div>
+            <p className="mt-2 text-sm text-[var(--ui-muted)]">De remisiones valorizadas en Nexo: centro productor vende, satelite compra.</p>
+          </div>
+        </div>
       </section>
 
-      {sp.ok ? <div className="ui-alert ui-alert--success">Presupuesto guardado.</div> : null}
+      {sp.ok ? <div className="ui-alert ui-alert--success">Modelo guardado.</div> : null}
       {sp.error ? <div className="ui-alert ui-alert--error">{sp.error}</div> : null}
 
-      <section className="ui-panel overflow-x-auto">
-        <table className="ui-table min-w-[980px]">
-          <thead>
-            <tr>
-              <th className="ui-th">Centro</th>
-              <th className="ui-th">Tipo</th>
-              <th className="ui-th">Presupuesto</th>
-              <th className="ui-th">Ingreso esperado</th>
-              <th className="ui-th">Gasto real</th>
-              <th className="ui-th">Variacion</th>
-              <th className="ui-th">Equilibrio</th>
-              <th className="ui-th">Margen</th>
-              {canManage ? <th className="ui-th">Guardar</th> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.cost_center_id}>
-                <td className="ui-td font-semibold">{centerLabel(row)}</td>
-                <td className="ui-td">{row.cost_center_type ?? "Sin tipo"}</td>
-                <td className="ui-td">{formatMoney(row.budget_amount)}</td>
-                <td className="ui-td">{formatMoney(row.expected_revenue)}</td>
-                <td className="ui-td">{formatMoney(row.actual_expenses)}</td>
-                <td className="ui-td">{formatMoney(row.budget_variance)}</td>
-                <td className="ui-td">{formatMoney(row.break_even_revenue)}</td>
-                <td className="ui-td">{formatPercent(row.target_gross_margin_pct)}</td>
-                {canManage ? (
-                  <td className="ui-td min-w-[360px]">
-                    <form action={upsertBudget} className="grid gap-2 sm:grid-cols-4">
-                      <input type="hidden" name="period_id" value={currentPeriod?.id ?? ""} />
-                      <input type="hidden" name="cost_center_id" value={row.cost_center_id} />
-                      <input className="ui-input" type="number" min="0" step="1" name="budget_amount" defaultValue={Number(row.budget_amount ?? 0)} aria-label="Presupuesto" />
-                      <input className="ui-input" type="number" min="0" step="1" name="expected_revenue" defaultValue={Number(row.expected_revenue ?? 0)} aria-label="Ingreso esperado" />
-                      <input className="ui-input" type="number" min="0" max="100" step="0.01" name="target_gross_margin_pct" defaultValue={Number(row.target_gross_margin_pct ?? 0)} aria-label="Margen objetivo" />
-                      <button className="ui-btn ui-btn--brand" type="submit" disabled={!currentPeriod}>Guardar</button>
-                    </form>
-                  </td>
-                ) : null}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <section className="grid gap-4 md:grid-cols-4">
+        <div className="ui-card">
+          <div className="ui-caption font-semibold uppercase">Centros configurados</div>
+          <div className="mt-3 text-3xl font-semibold text-[var(--ui-text)]">{configuredRows}/{rows.length}</div>
+          <p className="mt-2 ui-body-muted">Con al menos una meta economica cargada.</p>
+        </div>
+        <div className="ui-card">
+          <div className="ui-caption font-semibold uppercase">Presupuesto total</div>
+          <div className="mt-3 text-3xl font-semibold text-[var(--ui-text)]">{formatMoney(totalBudget)}</div>
+          <p className="mt-2 ui-body-muted">Techo mensual de gasto operativo.</p>
+        </div>
+        <div className="ui-card">
+          <div className="ui-caption font-semibold uppercase">Ingreso esperado</div>
+          <div className="mt-3 text-3xl font-semibold text-[var(--ui-text)]">{formatMoney(totalExpectedRevenue)}</div>
+          <p className="mt-2 ui-body-muted">Meta de venta externa o interna.</p>
+        </div>
+        <div className="ui-card">
+          <div className="ui-caption font-semibold uppercase">Equilibrio</div>
+          <div className="mt-3 text-3xl font-semibold text-[var(--ui-text)]">{formatMoney(totalBreakEven)}</div>
+          <p className="mt-2 ui-body-muted">Ventas necesarias para cubrir gastos.</p>
+        </div>
+      </section>
+
+      <section className="ui-panel space-y-3">
+        <div className="ui-h2">Como llenar esta pantalla</div>
+        <div className="grid gap-3 lg:grid-cols-3">
+          <div className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-surface-2)] p-4">
+            <div className="font-semibold text-[var(--ui-text)]">1. Centro productor</div>
+            <p className="mt-2 text-sm text-[var(--ui-muted)]">Pon el ingreso esperado por ventas internas a satelites y el margen que debe dejar producir.</p>
+          </div>
+          <div className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-surface-2)] p-4">
+            <div className="font-semibold text-[var(--ui-text)]">2. Satelites</div>
+            <p className="mt-2 text-sm text-[var(--ui-muted)]">Pon gastos propios de la sede y venta esperada. Las remisiones recibidas deben entrar como costo interno.</p>
+          </div>
+          <div className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-surface-2)] p-4">
+            <div className="font-semibold text-[var(--ui-text)]">3. Revisa equilibrio</div>
+            <p className="mt-2 text-sm text-[var(--ui-muted)]">Si el equilibrio supera el ingreso esperado, esa sede necesita subir ventas, bajar gasto o ajustar precio interno.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-5">
+        {groupedRows.map((group) => (
+          <div key={group.title} className="ui-panel space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="ui-h2">{group.title}</h2>
+                <p className="mt-1 ui-body-muted">{group.subtitle}</p>
+              </div>
+              <span className="ui-chip">{group.rows.length} centro(s)</span>
+            </div>
+
+            <div className="grid gap-4">
+              {group.rows.map((row) => {
+                const variance = Number(row.budget_variance ?? 0);
+                const isOverBudget = variance < 0;
+
+                return (
+                  <article key={row.cost_center_id} className="rounded-2xl border border-[var(--ui-border)] bg-white p-4 shadow-[var(--ui-shadow-soft)]">
+                    <div className="grid gap-4 xl:grid-cols-[minmax(220px,0.9fr)_minmax(0,1.3fr)_minmax(320px,0.95fr)] xl:items-start">
+                      <div>
+                        <div className="text-lg font-semibold text-[var(--ui-text)]">{centerLabel(row)}</div>
+                        <div className="mt-2 inline-flex rounded-full bg-[var(--ui-surface-2)] px-3 py-1 text-xs font-semibold text-[var(--ui-muted)]">
+                          {centerKindLabel(row.cost_center_type)}
+                        </div>
+                        <p className="mt-3 text-sm text-[var(--ui-muted)]">
+                          {row.cost_center_type === "production_center"
+                            ? "Su ingreso debe venir principalmente de ventas internas por remisiones valorizadas."
+                            : row.cost_center_type === "satellite"
+                              ? "Debe cubrir compras internas, gasto propio y venta esperada de la sede."
+                              : "Debe usarse solo para gasto compartido o soporte."}
+                        </p>
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="rounded-xl bg-[var(--ui-surface-2)] p-3">
+                          <div className="ui-caption font-semibold uppercase">Presupuesto</div>
+                          <div className="mt-1 text-lg font-semibold">{formatMoney(row.budget_amount)}</div>
+                        </div>
+                        <div className="rounded-xl bg-[var(--ui-surface-2)] p-3">
+                          <div className="ui-caption font-semibold uppercase">Ingreso esperado</div>
+                          <div className="mt-1 text-lg font-semibold">{formatMoney(row.expected_revenue)}</div>
+                        </div>
+                        <div className="rounded-xl bg-[var(--ui-surface-2)] p-3">
+                          <div className="ui-caption font-semibold uppercase">Gasto real</div>
+                          <div className="mt-1 text-lg font-semibold">{formatMoney(row.actual_expenses)}</div>
+                        </div>
+                        <div className="rounded-xl bg-[var(--ui-surface-2)] p-3">
+                          <div className="ui-caption font-semibold uppercase">Variacion</div>
+                          <div className={`mt-1 text-lg font-semibold ${isOverBudget ? "text-[var(--ui-danger)]" : "text-[var(--ui-success)]"}`}>{formatMoney(row.budget_variance)}</div>
+                        </div>
+                        <div className="rounded-xl bg-[var(--ui-surface-2)] p-3">
+                          <div className="ui-caption font-semibold uppercase">Equilibrio</div>
+                          <div className="mt-1 text-lg font-semibold">{formatMoney(row.break_even_revenue)}</div>
+                        </div>
+                        <div className="rounded-xl bg-[var(--ui-surface-2)] p-3">
+                          <div className="ui-caption font-semibold uppercase">Margen objetivo</div>
+                          <div className="mt-1 text-lg font-semibold">{formatPercent(row.target_gross_margin_pct)}</div>
+                        </div>
+                      </div>
+
+                      {canManage ? (
+                        <form action={upsertBudget} className="rounded-2xl border border-[var(--ui-border)] bg-[var(--ui-surface-2)] p-3">
+                          <input type="hidden" name="period_id" value={currentPeriod?.id ?? ""} />
+                          <input type="hidden" name="cost_center_id" value={row.cost_center_id} />
+                          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                            <label className="space-y-1">
+                              <span className="ui-label">Presupuesto mensual</span>
+                              <input className="ui-input" type="number" min="0" step="1" name="budget_amount" defaultValue={Number(row.budget_amount ?? 0)} />
+                            </label>
+                            <label className="space-y-1">
+                              <span className="ui-label">Ingreso esperado</span>
+                              <input className="ui-input" type="number" min="0" step="1" name="expected_revenue" defaultValue={Number(row.expected_revenue ?? 0)} />
+                            </label>
+                            <label className="space-y-1">
+                              <span className="ui-label">Margen bruto objetivo %</span>
+                              <input className="ui-input" type="number" min="0" max="100" step="0.01" name="target_gross_margin_pct" defaultValue={Number(row.target_gross_margin_pct ?? 0)} />
+                            </label>
+                          </div>
+                          <button className="ui-btn ui-btn--brand mt-3 w-full" type="submit" disabled={!currentPeriod}>Guardar modelo</button>
+                        </form>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
         {rows.length === 0 ? <div className="ui-empty">No hay centros de costo para el periodo actual.</div> : null}
       </section>
     </div>

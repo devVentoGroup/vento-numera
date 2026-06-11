@@ -30,7 +30,20 @@ type AppSwitcherItem = {
   group: "Workspace" | "Operacion" | "Proximamente";
 };
 
-type IconName = "dashboard" | "package" | "users";
+type IconName =
+  | "dashboard"
+  | "accounting"
+  | "users"
+  | "calendar"
+  | "store"
+  | "sparkles"
+  | "package"
+  | "menu"
+  | "fileText"
+  | "briefcase"
+  | "phone"
+  | "book"
+  | "flask";
 
 type NavigationRow = {
   group_label: string | null;
@@ -72,7 +85,21 @@ const APP_ENTITY =
 
 const APP_CODE = APP_ENTITY === "default" ? "numera" : APP_ENTITY;
 
-const ICON_NAMES = new Set<IconName>(["dashboard", "package", "users"]);
+const ICON_NAMES = new Set<IconName>([
+  "dashboard",
+  "accounting",
+  "users",
+  "calendar",
+  "store",
+  "sparkles",
+  "package",
+  "menu",
+  "fileText",
+  "briefcase",
+  "phone",
+  "book",
+  "flask",
+]);
 
 const APP_SWITCHER_ITEMS: Omit<AppSwitcherItem, "access">[] = [
   {
